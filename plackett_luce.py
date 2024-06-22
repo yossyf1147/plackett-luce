@@ -156,24 +156,32 @@ def pl_numpy(rankings, tolerance=1e-9, check_assumption=True, normalize=True, ve
 
 
 if __name__ == '__main__':
+    import argparse
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename', type=str, default='db.sqlite3', help='Name of the games database.')
-    parser.add_argument("-E", "--exclude-inactive", dest="excludeInactive", action = "store_true", default = False, help = "Exclude inactive bots from printed results.  All bots are always included for calculation purposes.")
+    parser.add_argument("-E", "--exclude-inactive", dest="excludeInactive", action="store_true", default=False,
+                        help="Exclude inactive bots from printed results. All bots are always included for calculation purposes.")
     args = parser.parse_args()
-    _rankings = retrieve_sqldata(args.filename, 'select game_id, name, finish, field_size from games')
+
+    filename = 'db.test'  # Hardcoded filename
+    _rankings = retrieve_sqldata(filename, 'select game_id, name, finish, field_size from games')
+
     rankings = list()
     while _rankings:
         field_size = _rankings[0][3]
-        rankings.append({player:finish for _, player, finish, _ in _rankings[:field_size]})
+        rankings.append({player: finish for _, player, finish, _ in _rankings[:field_size]})
         _rankings = _rankings[field_size:]
 
     gammas = plackett_luce(rankings)
-    player_data = retrieve_sqldata(args.filename, 'select name, path, active from players')
-    active_status = {player:active for player, _, active in player_data}
-    paths = {player:path for player, path, _ in player_data}
-    normalizing_constant = sum(value for player, value in gammas.items() if (not args.excludeInactive) or active_status[player])
+    player_data = retrieve_sqldata(filename, 'select name, path, active from players')
+    active_status = {player: active for player, _, active in player_data}
+    paths = {player: path for player, path, _ in player_data}
+    normalizing_constant = sum(
+        value for player, value in gammas.items() if (not args.excludeInactive) or active_status[player])
 
-    gammas = {player : value / normalizing_constant for player, value in gammas.items() if (not args.excludeInactive) or active_status[player]}   #normalize
+    gammas = {player: value / normalizing_constant for player, value in gammas.items() if
+              (not args.excludeInactive) or active_status[player]}  # normalize
 
-    for gamma, player in sorted([(v,k) for k,v in gammas.items()], reverse=True):
+    for gamma, player in sorted([(v, k) for k, v in gammas.items()], reverse=True):
         print("{:<25}{:5.3f}   {:^1}  {:<25}".format(player, gamma, active_status[player], paths[player]))
+
